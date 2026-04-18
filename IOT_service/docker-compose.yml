@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  iot_db:
+    image: mysql:8.0
+    container_name: asu_iot_db
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=asu_iot
+    ports:
+      - "3306:3306"
+    volumes:
+      - iot_db_data:/var/lib/mysql
+
+  iot_api:
+    build: .
+    container_name: asu_iot_api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - iot_db
+    environment:
+      # This forces the API to connect to the 'iot_db' container instead of 'localhost'
+      - DATABASE_URL=mysql+pymysql://root:root@iot_db:3306/asu_iot
+    
+    # Restarts the API if it tries to connect before MySQL finishes booting up
+    restart: on-failure
+
+volumes:
+  iot_db_data:
