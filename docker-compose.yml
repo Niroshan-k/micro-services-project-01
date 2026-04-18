@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # -----------------------------------
+  # 1. THE SINGLE SHARED DATABASE
+  # -----------------------------------
+  main_db:
+    image: mysql:8.0
+    container_name: asu_main_db
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=asu_main_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - main_db_data:/var/lib/mysql
+
+  # -----------------------------------
+  # 2. THE MICROSERVICES
+  # -----------------------------------
+  iot_api:
+    build: ./iot_service
+    container_name: asu_iot_api
+    ports:
+      - "8000:8000" # Mapped to localhost:8000
+    depends_on:
+      - main_db
+    environment:
+      - DATABASE_URL=mysql+pymysql://root:root@main_db:3306/asu_main_db
+    restart: on-failure
+
+  customer_api:
+    build: ./customer_service
+    container_name: asu_customer_api
+    ports:
+      - "8001:8000" # Mapped to localhost:8001
+    depends_on:
+      - main_db
+    environment:
+      - DATABASE_URL=mysql+pymysql://root:root@main_db:3306/asu_main_db
+    restart: on-failure
+
+  analytics_api:
+    build: ./analytics_service
+    container_name: asu_analytics_api
+    ports:
+      - "8002:8000" # Mapped to localhost:8002
+    depends_on:
+      - main_db
+    environment:
+      - DATABASE_URL=mysql+pymysql://root:root@main_db:3306/asu_main_db
+    restart: on-failure
+
+  alerts_api:
+    build: ./alert_service
+    container_name: asu_alerts_api
+    ports:
+      - "8003:8000" # Mapped to localhost:8003
+    depends_on:
+      - main_db
+    environment:
+      - DATABASE_URL=mysql+pymysql://root:root@main_db:3306/asu_main_db
+    restart: on-failure
+
+  admin_api:
+    build: ./admin_service
+    container_name: asu_admin_api
+    ports:
+      - "8004:8000" # Mapped to localhost:8004
+    depends_on:
+      - main_db
+    environment:
+      - DATABASE_URL=mysql+pymysql://root:root@main_db:3306/asu_main_db
+    restart: on-failure
+
+volumes:
+  main_db_data:
