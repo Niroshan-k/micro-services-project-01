@@ -1,17 +1,58 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from passlib.context import CryptContext
 from . import models, schemas, database
+
+# --- SETUP SECURITY ---
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def get_password_hash(password: str):
+    return pwd_context.hash(password.encode('utf-8'))
+
+def verify_password(plain_password: str, hashed_password: str):
+    return pwd_context.verify(plain_password.encode('utf-8'), hashed_password)
 
 router = APIRouter(tags=["Admin & Management"])
 
-# ----------------- ADMIN USERS -----------------
+# ----------------- ADMIN AUTHENTICATION -----------------
+
 @router.post("/admins", response_model=schemas.AdminUserResponse)
 def create_admin(admin: schemas.AdminUserCreate, db: Session = Depends(database.get_db)):
-    db_admin = models.AdminUser(**admin.model_dump())
+    existing_user = db.query(models.AdminUser).filter(models.AdminUser.email == admin.email).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Admin email already exists")
+    
+    admin_data = admin.model_dump()
+    raw_password = admin_data.pop("password")
+    admin_data["password_hash"] = get_password_hash(raw_password) 
+    
+    # Optional: Auto-generate ID if your DB model requires it
+    if hasattr(models.AdminUser, 'admin_id') and 'admin_id' not in admin_data:
+        admin_data["admin_id"] = f"ADM-{uuid.uuid4().hex[:6].upper()}" 
+    
+    db_admin = models.AdminUser(**admin_data)
     db.add(db_admin)
     db.commit()
     db.refresh(db_admin)
     return db_admin
+
+class AdminLoginRequest(BaseModel):
+    email: str
+    password: str
+
+@router.post("/login")
+def login(req: AdminLoginRequest, db: Session = Depends(database.get_db)):
+    admin = db.query(models.AdminUser).filter(models.AdminUser.email == req.email).first()
+    
+    if not admin or not verify_password(req.password, admin.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+    # Adjust "admin_id" if your primary key is named differently
+    return {"message": "Success", "admin_id": admin.admin_id}
+
+# ----------------- ADMIN USERS -----------------
 
 @router.get("/admins", response_model=list[schemas.AdminUserResponse])
 def get_admins(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):

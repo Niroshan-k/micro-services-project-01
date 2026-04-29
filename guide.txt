@@ -1,5 +1,5 @@
 Service 1 (IoT Ingestion API): Takes in the real-time sensor data from smart meters.
 Service 2 (Customer API): Feeds the dashboard so users can see their usage.
 Service 3 (Analytics Engine): Crunches the numbers for forecasting.
-Service 4 (Alerts Service): Triggers notifications for water leaks or power spikes.
+Service 4 (Alerts Service): Triggers notifications for water leaks or power spikes. [ lamda ]
 Service 5 Admin pannel

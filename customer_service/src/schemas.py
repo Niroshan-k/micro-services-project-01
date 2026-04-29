@@ -4,16 +4,23 @@ from datetime import datetime
 
 # ================= CUSTOMERS =================
 class CustomerCreate(BaseModel):
-    customer_id: str = Field(..., min_length=3, max_length=50)
     full_name: str = Field(..., min_length=2, max_length=100)
+    password: str = Field(..., min_length=7, max_length=100)
     email: EmailStr
     phone: str = Field(..., min_length=10, max_length=20)
     address: str = Field(..., min_length=5, max_length=255)
     account_type: str = Field(..., pattern="^(household|factory|municipal)$")
 
-class CustomerResponse(CustomerCreate):
+class CustomerResponse(BaseModel):
+    customer_id: str
+    full_name: str
+    email: str
+    phone: str
+    address: str
+    account_type: str
     status: str
     created_at: datetime
+
     class Config:
         from_attributes = True
 

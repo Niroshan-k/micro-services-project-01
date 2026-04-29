@@ -1,14 +1,15 @@
+# src/schemas.py
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, Dict, Any
 from datetime import datetime
 
 # ================= ADMIN USERS =================
 class AdminUserCreate(BaseModel):
-    admin_id: str = Field(..., min_length=3, max_length=50)
+    # Removed admin_id (backend auto-generates this securely)
     full_name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
-    password_hash: str # In production, this would be raw password that gets hashed
-    role: str = Field(..., pattern="^(superadmin|support|analyst)$")
+    password: str = Field(..., min_length=8) # Receives raw password from React
+    role: str = Field(default="analyst", pattern="^(superadmin|support|analyst)$")
 
 class AdminUserResponse(BaseModel):
     admin_id: str
@@ -18,8 +19,14 @@ class AdminUserResponse(BaseModel):
     is_active: bool
     created_at: datetime
     last_login: Optional[datetime] = None
+    
     class Config:
         from_attributes = True
+
+# ================= ADMIN LOGIN =================
+class AdminLoginRequest(BaseModel):
+    email: EmailStr
+    password: str
 
 # ================= AUDIT LOGS =================
 class AuditLogCreate(BaseModel):
@@ -34,6 +41,7 @@ class AuditLogCreate(BaseModel):
 class AuditLogResponse(AuditLogCreate):
     id: int
     performed_at: datetime
+    
     class Config:
         from_attributes = True
 
@@ -47,6 +55,7 @@ class SystemHealthCreate(BaseModel):
 class SystemHealthResponse(SystemHealthCreate):
     id: int
     last_checked: datetime
+    
     class Config:
         from_attributes = True
 
@@ -61,5 +70,6 @@ class ReportResponse(ReportCreate):
     file_path: Optional[str] = None
     status: str
     generated_at: datetime
+    
     class Config:
         from_attributes = True

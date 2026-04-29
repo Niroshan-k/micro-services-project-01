@@ -1,76 +1,99 @@
-import { useState, useEffect } from 'react';
-import { iotService, customerService, alertsService } from './api';
-import './App.css';
+// src/App.jsx
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-function App() {
-  const [meters, setMeters] = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
+import AuthScreen from './pages/AuthScreen';
+import DashboardOverview from './pages/DashboardOverview';
+import Sidebar from './components/Sidebar';
+import { theme } from './theme';
+import WaterMetrics from './pages/WaterMetrics';
+import EnergyMetrics from './pages/EnergyMetrics';
+import SystemAlerts from './pages/SystemAlerts';
+import AuditReports from './pages/AuditReports';
+import Settings from './pages/Settings';
 
-  useEffect(() => {
-    const fetchSystemData = async () => {
-      // 1. Try to fetch Customers
-      try {
-        const customersRes = await customerService.get('/customers');
-        setCustomers(customersRes.data);
-      } catch (error) {
-        console.error("Customer service is down:", error);
-      }
+import AdminLogin from './pages/AdminLogin';
+import AdminLayout from './components/AdminLayout';
+import AdminDashboardOverview from './pages/AdminDashboardOverview';
+import AdminCustomerMatrix from './pages/AdminCustomerMatrix';
+import AdminNodeTelemetry from './pages/AdminNodeTelemetry';
+import AdminSystemHealth from './pages/AdminSystemHealth';
+import AdminAuditLogs from './pages/AdminAuditLogs';
+import AdminReports from './pages/AdminReports';
 
-      // 2. Try to fetch Meters
-      try {
-        const metersRes = await iotService.get('/meters');
-        setMeters(metersRes.data);
-      } catch (error) {
-        console.error("IoT service is down:", error);
-      }
+// --- SECURITY ROUTE GUARDS ---
 
-      setLoading(false); // Done loading regardless of success/fail
-    };
+// 1. Customer Guard: Checks for standard session
+const CustomerProtectedRoute = ({ children }) => {
+  const customerId = localStorage.getItem('AQUASENSE_SESSION_ID');
+  if (!customerId) {
+    // Kick them back to the login screen if no token exists
+    return <Navigate to="/" replace />;
+  }
+  return children;
+};
 
-    fetchSystemData();
-  }, []);
+// 2. Admin Guard: Checks for the high-clearance Overwatch token
+const AdminProtectedRoute = ({ children }) => {
+  const adminId = localStorage.getItem('AQUASENSE_ADMIN_ID');
+  if (!adminId) {
+    // Kick them back to the Admin Login screen
+    return <Navigate to="/overwatch/login" replace />;
+  }
+  return children;
+};
 
-  if (loading) return <h2>Loading System Data...</h2>;
+// Temporary placeholder for the Overwatch Dashboard
+const OverwatchShell = () => (
+  <div style={{ backgroundColor: '#000', color: '#00FF00', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: '"JetBrains Mono", monospace' }}>
+    <h1>OVERWATCH TERMINAL ACTIVE</h1>
+  </div>
+);
 
+export default function App() {
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h1>ASU Smart Utility Dashboard</h1>
-      <p>Seamlessly pulling data from multiple isolated microservices.</p>
-
-      <div style={{ display: 'flex', gap: '40px', marginTop: '20px' }}>
+    <Router>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<AuthScreen />} />
+        <Route path="/overwatch/login" element={<AdminLogin />} />
         
-        {/* Customer Service Data */}
-        <div style={{ flex: 1, border: '1px solid #ccc', padding: '15px', borderRadius: '8px' }}>
-          <h2>👥 Customers (Port 8001)</h2>
-          {customers.length === 0 ? <p>No customers found.</p> : (
-            <ul>
-              {customers.map(c => (
-                <li key={c.customer_id}>
-                  <strong>{c.full_name}</strong> - {c.account_type} ({c.email})
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {/* --- PROTECTED ADMIN OVERWATCH ROUTES --- */}
+        <Route path="/overwatch" element={
+          <AdminProtectedRoute>
+            <AdminLayout />
+          </AdminProtectedRoute>
+        }>
+          {/* Index route for /overwatch */}
+          <Route index element={<AdminDashboardOverview />} />
+          
+          {/* Placeholders for the other sidebar links, you can build these out later! */}
+          <Route path="customers" element={<AdminCustomerMatrix />} />
+          <Route path="telemetry" element={<AdminNodeTelemetry />} />
+          <Route path="health" element={<AdminSystemHealth />} />
+          <Route path="audit" element={<AdminAuditLogs />} />
+          <Route path="reports" element={<AdminReports />} />
+        </Route>
 
-        {/* IoT Service Data */}
-        <div style={{ flex: 1, border: '1px solid #ccc', padding: '15px', borderRadius: '8px' }}>
-          <h2>⚡ Smart Meters (Port 8000)</h2>
-          {meters.length === 0 ? <p>No meters found.</p> : (
-            <ul>
-              {meters.map(m => (
-                <li key={m.meter_id}>
-                  <strong>ID: {m.meter_id}</strong> - {m.meter_type.toUpperCase()} ({m.status})
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-      </div>
-    </div>
+        {/* --- PROTECTED CUSTOMER DASHBOARD --- */}
+        <Route path="/dashboard/*" element={
+          <CustomerProtectedRoute>
+            <div style={{ display: 'flex', height: '100vh', backgroundColor: theme.bg, color: theme.text, fontFamily: theme.fontMain }}>
+              <Sidebar />
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                <Routes>
+                  <Route path="/" element={<DashboardOverview />} />
+                  <Route path="/water" element={<WaterMetrics />} />
+                  <Route path="/energy" element={<EnergyMetrics />} />
+                  <Route path="/alerts" element={<SystemAlerts />} />
+                  <Route path="/reports" element={<AuditReports />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Routes>
+              </div>
+            </div>
+          </CustomerProtectedRoute>
+        } />
+      </Routes>
+    </Router>
   );
 }
-
-export default App;
